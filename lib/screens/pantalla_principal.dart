@@ -154,15 +154,35 @@ class _VistaDiaState extends State<_VistaDia> {
   List<_Segmento>? _segmentosCache;
   List<Bloque>? _bloquesAnterior;
   List<EventoCalendario>? _eventosAnterior;
+  List<Bloque> _bloquesLocales = [];
+  bool _cargando = true;
+  int _versionCargada = -1;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BloqueProvider>().cargarBloques(widget.dia);
-      context.read<CalendarioProvider>().cargarEventos(widget.dia);
+void initState() {
+  super.initState();
+  _cargarBloquesLocales();
+}
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  final version = context.read<BloqueProvider>().version;
+  if (version != _versionCargada) {
+    _versionCargada = version;
+    _cargarBloquesLocales();
+  }
+}
+
+Future<void> _cargarBloquesLocales() async {
+  final bloques = await DatabaseHelper.instance.obtenerBloquesPorDia(widget.dia);
+  if (mounted) {
+    setState(() {
+      _bloquesLocales = bloques;
+      _cargando = false;
     });
   }
+}
 
   @override
     void didUpdateWidget(_VistaDia oldWidget) {
@@ -316,7 +336,8 @@ class _VistaDiaState extends State<_VistaDia> {
 
   @override
   Widget build(BuildContext context) {
-    final bloques = context.watch<BloqueProvider>().bloques;
+    context.watch<BloqueProvider>();
+    final bloques = _bloquesLocales;
     final eventos = context.watch<CalendarioProvider>().eventosDelDia;
     final categorias = context.watch<CategoriaProvider>().categorias;
     if (_bloquesAnterior != bloques || _eventosAnterior != eventos) {
