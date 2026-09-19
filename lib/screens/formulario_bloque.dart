@@ -13,8 +13,9 @@ import '../utils/fecha_utils.dart';
 class FormularioBloque extends StatefulWidget {
   final Bloque? bloque;
   final DateTime? horaInicial;
+  final DateTime? horaFinal;
 
-  const FormularioBloque({super.key, this.bloque, this.horaInicial});
+  const FormularioBloque({super.key, this.bloque, this.horaInicial, this.horaFinal});
 
   @override
   State<FormularioBloque> createState() => _FormularioBloqueState();
@@ -61,7 +62,16 @@ class _FormularioBloqueState extends State<FormularioBloque> {
 
     if (b == null && widget.horaInicial != null) {
       _horaInicio = TimeOfDay.fromDateTime(widget.horaInicial!);
-      _modoEntrada = 1;
+      _modoEntrada = 0;
+    }
+
+    if (b == null && widget.horaFinal !=null) {
+      _horaFin = TimeOfDay.fromDateTime(widget.horaFinal!);
+      if (_horaInicio != null) {
+        final inicioMin = _horaInicio!.hour * 60 + _horaInicio!.minute;
+        final finMin = _horaFin!.hour * 60 + _horaFin!.minute;
+        _duracionMinutos = (finMin - inicioMin).clamp(0, 1440);
+      }
     }
 
     if (b != null) {

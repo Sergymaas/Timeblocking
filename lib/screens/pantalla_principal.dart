@@ -9,6 +9,7 @@ import 'formulario_bloque.dart';
 import 'package:timeblocking/providers/calendario_provider.dart';
 import 'package:timeblocking/services/calendario_service.dart';
 import '../utils/fecha_utils.dart';
+import '../database/database_helper.dart';
 
 class PantallaPrincipal extends StatefulWidget {
   const PantallaPrincipal({super.key});
@@ -364,7 +365,7 @@ Future<void> _cargarBloquesLocales() async {
               } else if (seg.esEvento) {
                 return _construirFila(
                   hora: FechaUtils.formatearHora(seg.inicio),
-                  altura: 48.0,
+                  altura: 56.0,
                   child: _bloqueEvento(seg),
                 );
               } else {
@@ -372,7 +373,7 @@ Future<void> _cargarBloquesLocales() async {
                     _buscarCategoria(categorias, seg.bloque!.categoriaId);
                 return _construirFila(
                   hora: FechaUtils.formatearHora(seg.inicio),
-                  altura: 48.0,
+                  altura: 56.0,
                   child: _bloqueActividad(seg, categoria),
                 );
               }
@@ -386,7 +387,7 @@ Future<void> _cargarBloquesLocales() async {
                     '24:00',
                     textAlign: TextAlign.right,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 11,
                       color: Theme.of(context).colorScheme.outline,
                     ),
                   ),
@@ -450,7 +451,10 @@ Future<void> _cargarBloquesLocales() async {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => FormularioBloque(horaInicial: seg.inicio),
+            builder: (_) => FormularioBloque(
+              horaInicial: seg.inicio,
+              horaFinal: seg.fin,
+            ),
           ),
         );
       },
@@ -498,6 +502,17 @@ Future<void> _cargarBloquesLocales() async {
         : m == 0
             ? '${h}h'
             : '${h}h ${m}min';
+    final ahora = DateTime.now();
+    final esActivo = seg.bloque!.horaInicio.isBefore(ahora) &&
+      seg.bloque!.horaFin.isAfter(ahora) &&
+      FechaUtils.mismodia(widget.dia, ahora);
+
+    double progreso = 0;
+    if (esActivo) {
+      final total = seg.bloque!.horaFin.difference(seg.bloque!.horaInicio).inMinutes;
+      final transcurrido = ahora.difference(seg.bloque!.horaInicio).inMinutes;
+      progreso = (transcurrido / total).clamp(0.0, 1.0);
+    }
 
     return GestureDetector(
       onTap: () {
@@ -530,11 +545,9 @@ Future<void> _cargarBloquesLocales() async {
         width: double.infinity,
         margin: const EdgeInsets.symmetric(vertical: 2),
         decoration: BoxDecoration(
-          color: completado
-              ? color.withOpacity(0.06)
-              : seleccionado
-                  ? color.withOpacity(0.35)
-                  : color.withOpacity(0.15),
+          color: seleccionado
+              ? Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6)
+              : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
           border: Border(
             left: BorderSide(
               color: completado ? color.withOpacity(0.3) : color,
@@ -563,8 +576,8 @@ Future<void> _cargarBloquesLocales() async {
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: completado
-                          ? color.withOpacity(0.4)
-                          : color.withOpacity(0.9),
+                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.3)
+                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.9),
                       decoration: completado
                           ? TextDecoration.lineThrough
                           : TextDecoration.none,
@@ -578,10 +591,22 @@ Future<void> _cargarBloquesLocales() async {
                       style: TextStyle(
                         fontSize: 11,
                         color: completado
-                            ? color.withOpacity(0.3)
-                            : color.withOpacity(0.7),
+                            ? Theme.of(context).colorScheme.onSurface.withOpacity(0.2)
+                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                       ),
                     ),
+                  if (esActivo) ...[
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: progreso,
+                        minHeight: 3,
+                        backgroundColor: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                      )
+                    )
+                  ]
                 ],
               ),
             ),
