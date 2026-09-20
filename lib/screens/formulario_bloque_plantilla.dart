@@ -10,11 +10,15 @@ import '../models/dia_plantilla.dart';
 class FormularioBloquePlantilla extends StatefulWidget {
   final int diaPlantillaId;
   final BloquePlantilla? bloque;
+  final int? horaInicialMinutos;
+  final int? horaFinalMinutos;
 
   const FormularioBloquePlantilla({
     super.key,
     required this.diaPlantillaId,
     this.bloque,
+    this.horaInicialMinutos,
+    this.horaFinalMinutos,
   });
 
   @override
@@ -53,6 +57,24 @@ class _FormularioBloquePlantillaState
       );
       _duracionMinutos = b.duracionMinutos;
       _modoEntrada = 0;
+    }
+
+    if (b == null && widget.horaInicialMinutos != null) {
+      _horaInicio = TimeOfDay(
+        hour: widget.horaInicialMinutos! ~/ 60,
+        minute: widget.horaInicialMinutos! % 60,
+      );
+      _modoEntrada = 0;
+    }
+
+    if (b == null && widget.horaFinalMinutos != null) {
+      _horaFin = TimeOfDay(
+        hour: widget.horaFinalMinutos! ~/ 60,
+        minute: widget.horaFinalMinutos! % 60,
+      );
+      if (_horaInicio != null) {
+        _duracionMinutos = widget.horaFinalMinutos! - widget.horaInicialMinutos!;
+      }
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {

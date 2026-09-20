@@ -7,6 +7,7 @@ import '../models/bloque_plantilla.dart';
 import '../providers/plantilla_provider.dart';
 import '../providers/categoria_provider.dart';
 import '../models/categoria.dart';
+import '../utils/fecha_utils.dart';
 import 'formulario_bloque_plantilla.dart';
 
 class PantallaDiasPlantilla extends StatefulWidget {
@@ -52,8 +53,7 @@ class _PantallaDiasPlantillaState extends State<PantallaDiasPlantilla> {
                     itemBuilder: (context, i) {
                       final seleccionado = i == _diaActual;
                       return Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                         child: GestureDetector(
                           onTap: () {
                             setState(() => _diaActual = i);
@@ -66,21 +66,15 @@ class _PantallaDiasPlantillaState extends State<PantallaDiasPlantilla> {
                             decoration: BoxDecoration(
                               color: seleccionado
                                   ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context)
-                                      .colorScheme
-                                      .surfaceVariant,
+                                  : Theme.of(context).colorScheme.surfaceVariant,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               'Día ${dias[i].numeroDia}',
                               style: TextStyle(
                                 color: seleccionado
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .onPrimary
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontWeight: seleccionado
                                     ? FontWeight.w600
                                     : FontWeight.normal,
@@ -95,7 +89,6 @@ class _PantallaDiasPlantillaState extends State<PantallaDiasPlantilla> {
 
                 const Divider(height: 1),
 
-                // ── Bloques del día seleccionado ─────────────────────────
                 Expanded(
                   child: _VistaBloquesDia(
                     dia: dias.isNotEmpty ? dias[_diaActual] : null,
@@ -125,6 +118,28 @@ class _PantallaDiasPlantillaState extends State<PantallaDiasPlantilla> {
   }
 }
 
+// ─── Segmento de plantilla ────────────────────────────────────────────────────
+
+class _SegmentoPlantilla {
+  final int inicioMinutos;
+  final int finMinutos;
+  final BloquePlantilla? bloque;
+
+  bool get esLibre => bloque == null;
+
+  const _SegmentoPlantilla._({
+    required this.inicioMinutos,
+    required this.finMinutos,
+    this.bloque,
+  });
+
+  factory _SegmentoPlantilla.libre(int inicio, int fin) =>
+      _SegmentoPlantilla._(inicioMinutos: inicio, finMinutos: fin);
+
+  factory _SegmentoPlantilla.bloque(int inicio, int fin, BloquePlantilla bloque) =>
+      _SegmentoPlantilla._(inicioMinutos: inicio, finMinutos: fin, bloque: bloque);
+}
+
 // ─── Vista de bloques del día ─────────────────────────────────────────────────
 
 class _VistaBloquesDia extends StatefulWidget {
@@ -138,6 +153,9 @@ class _VistaBloquesDia extends StatefulWidget {
 }
 
 class _VistaBloquesDiaState extends State<_VistaBloquesDia> {
+  static const int _inicioMinutos = 0;   // 00:00
+  static const int _finMinutos = 1440;   // 24:00
+
   final Set<int> _bloquesSeleccionados = {};
   bool get _modoSeleccion => _bloquesSeleccionados.isNotEmpty;
 
@@ -160,14 +178,49 @@ class _VistaBloquesDiaState extends State<_VistaBloquesDia> {
     }
   }
 
+  List<_SegmentoPlantilla> _calcularSegmentos(List<BloquePlantilla> bloques) {
+    final ordenados = [...bloques]
+      ..sort((a, b) => a.horaInicioMinutos.compareTo(b.horaInicioMinutos));
+
+    final segmentos = <_SegmentoPlantilla>[];
+    int cursor = _inicioMinutos;
+
+    for (final bloque in ordenados) {
+      if (bloque.horaInicioMinutos > cursor) {
+        final duracion = bloque.horaInicioMinutos - cursor;
+        if (duracion > 1) {
+          segmentos.add(_SegmentoPlantilla.libre(cursor, bloque.horaInicioMinutos));
+        }
+      }
+      segmentos.add(_SegmentoPlantilla.bloque(
+          bloque.horaInicioMinutos, bloque.horaFinMinutos, bloque));
+      cursor = bloque.horaFinMinutos;
+    }
+
+    if (cursor < _finMinutos) {
+      final duracion = _finMinutos - cursor;
+      if (duracion > 1) {
+        segmentos.add(_SegmentoPlantilla.libre(cursor, _finMinutos));
+      }
+    }
+
+    return segmentos;
+  }
+
+  String _formatearMinutos(int minutos) {
+    final h = (minutos ~/ 60).toString().padLeft(2, '0');
+    final m = (minutos % 60).toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
   Future<void> _copiarSeleccionadosAOtrosDias() async {
     final provider = context.read<PlantillaProvider>();
     final bloques = provider.bloquesActuales
         .where((b) => _bloquesSeleccionados.contains(b.id))
         .toList();
 
-    final diasSeleccionados = List<bool>.filled(
-        widget.diasPlantilla.length, false);
+    final diasSeleccionados =
+        List<bool>.filled(widget.diasPlantilla.length, false);
 
     await showDialog(
       context: context,
@@ -185,8 +238,8 @@ class _VistaBloquesDiaState extends State<_VistaBloquesDia> {
                 return CheckboxListTile(
                   title: Text('Día ${dia.numeroDia}'),
                   value: diasSeleccionados[i],
-                  onChanged: (v) => setStateDialog(
-                      () => diasSeleccionados[i] = v ?? false),
+                  onChanged: (v) =>
+                      setStateDialog(() => diasSeleccionados[i] = v ?? false),
                 );
               },
             ),
@@ -203,7 +256,6 @@ class _VistaBloquesDiaState extends State<_VistaBloquesDia> {
                   if (!diasSeleccionados[i]) continue;
                   final dia = widget.diasPlantilla[i];
                   if (dia.id == widget.dia?.id) continue;
-
                   for (final bloque in bloques) {
                     await provider.insertarBloquePlantilla(BloquePlantilla(
                       diaPlantillaId: dia.id!,
@@ -229,103 +281,52 @@ class _VistaBloquesDiaState extends State<_VistaBloquesDia> {
   Widget build(BuildContext context) {
     final bloques = context.watch<PlantillaProvider>().bloquesActuales;
     final categorias = context.watch<CategoriaProvider>().categorias;
-
-    if (bloques.isEmpty) {
-      return const Center(
-        child: Text('No hay bloques. Pulsa + para añadir uno.'),
-      );
-    }
+    final segmentos = _calcularSegmentos(bloques);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-        itemCount: bloques.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, i) {
-          final bloque = bloques[i];
-          final categoria = _buscarCategoria(categorias, bloque.categoriaId);
-          final color = categoria?.color ?? Colors.indigo;
-          final seleccionado = _bloquesSeleccionados.contains(bloque.id);
-
-          return GestureDetector(
-            onTap: () {
-              if (_modoSeleccion) {
-                setState(() {
-                  if (seleccionado) {
-                    _bloquesSeleccionados.remove(bloque.id);
-                  } else {
-                    _bloquesSeleccionados.add(bloque.id!);
-                  }
-                });
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(0, 8, 16, 100),
+        child: Column(
+          children: [
+            ...segmentos.map((seg) {
+              if (seg.esLibre) {
+                return _construirFila(
+                  hora: _formatearMinutos(seg.inicioMinutos),
+                  altura: 32,
+                  child: _bloqueLibre(seg),
+                );
               } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => FormularioBloquePlantilla(
-                      diaPlantillaId: bloque.diaPlantillaId,
-                      bloque: bloque,
-                    ),
-                  ),
+                final categoria =
+                    _buscarCategoria(categorias, seg.bloque!.categoriaId);
+                return _construirFila(
+                  hora: _formatearMinutos(seg.inicioMinutos),
+                  child: _bloqueActividad(seg, categoria),
                 );
               }
-            },
-            onLongPress: () {
-              setState(() => _bloquesSeleccionados.add(bloque.id!));
-            },
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: seleccionado
-                    ? color.withOpacity(0.35)
-                    : color.withOpacity(0.15),
-                border: Border(
-                  left: BorderSide(color: color, width: 4),
-                  top: seleccionado
-                      ? BorderSide(color: color, width: 2)
-                      : BorderSide.none,
-                  right: seleccionado
-                      ? BorderSide(color: color, width: 2)
-                      : BorderSide.none,
-                  bottom: seleccionado
-                      ? BorderSide(color: color, width: 2)
-                      : BorderSide.none,
-                ),
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(10),
-                  bottomRight: Radius.circular(10),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      bloque.titulo,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: color.withOpacity(0.9),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${bloque.horaInicioTexto} — ${bloque.horaFinTexto}',
+            }).toList(),
+            // Hora final
+            Row(
+              children: [
+                SizedBox(
+                  width: 48,
+                  child: Text(
+                    '24:00',
+                    textAlign: TextAlign.right,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: color.withOpacity(0.7),
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.outline,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
+          ],
+        ),
       ),
       bottomSheet: _modoSeleccion
           ? Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 boxShadow: [
@@ -361,6 +362,184 @@ class _VistaBloquesDiaState extends State<_VistaBloquesDia> {
               ),
             )
           : null,
+    );
+  }
+
+  Widget _construirFila({
+    required String hora,
+    String? horaFin,
+    double altura = 56,
+    required Widget child,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 48,
+          height: altura,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                hora,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+              if (horaFin != null)
+                Text(
+                  horaFin,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: child),
+      ],
+    );
+  }
+
+  Widget _bloqueLibre(_SegmentoPlantilla seg) {
+    return GestureDetector(
+      onTap: () {
+        if (_modoSeleccion) {
+          setState(() => _bloquesSeleccionados.clear());
+          return;
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FormularioBloquePlantilla(
+              diaPlantillaId: widget.dia!.id!,
+              horaInicialMinutos: seg.inicioMinutos,
+              horaFinalMinutos: seg.finMinutos,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        height: 32,
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
+          border: Border(
+            left: BorderSide(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+              width: 2,
+            ),
+          ),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(10),
+            bottomRight: Radius.circular(10),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bloqueActividad(_SegmentoPlantilla seg, Categoria? categoria) {
+    final color = categoria?.color ?? Colors.indigo;
+    final seleccionado = _bloquesSeleccionados.contains(seg.bloque!.id);
+
+    final duracionMin = seg.finMinutos - seg.inicioMinutos;
+    final h = duracionMin ~/ 60;
+    final m = duracionMin % 60;
+    final duracionTexto = h == 0
+        ? '${m}min'
+        : m == 0
+            ? '${h}h'
+            : '${h}h ${m}min';
+
+    return GestureDetector(
+      onTap: () {
+        if (_modoSeleccion) {
+          setState(() {
+            final id = seg.bloque!.id!;
+            if (_bloquesSeleccionados.contains(id)) {
+              _bloquesSeleccionados.remove(id);
+            } else {
+              _bloquesSeleccionados.add(id);
+            }
+          });
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FormularioBloquePlantilla(
+                diaPlantillaId: seg.bloque!.diaPlantillaId,
+                bloque: seg.bloque,
+              ),
+            ),
+          );
+        }
+      },
+      onLongPress: () {
+        setState(() => _bloquesSeleccionados.add(seg.bloque!.id!));
+      },
+      child: Container(
+        width: double.infinity,
+        height: 64,
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        decoration: BoxDecoration(
+          color: seleccionado
+              ? Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6)
+              : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          border: Border(
+            left: BorderSide(color: color, width: 2),
+            top: seleccionado ? BorderSide(color: color, width: 1) : BorderSide.none,
+            right: seleccionado ? BorderSide(color: color, width: 1) : BorderSide.none,
+            bottom: seleccionado ? BorderSide(color: color, width: 1) : BorderSide.none,
+          ),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(10),
+            bottomRight: Radius.circular(10),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              seg.bloque!.titulo,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.9),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (categoria != null)
+              Text(
+                categoria.nombre,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color.withOpacity(0.8),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            Text(
+              duracionTexto,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
