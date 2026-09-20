@@ -36,3 +36,12 @@ jobs:
           name: app-release
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
+
+      - name: Crear Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: ${{ steps.fecha.outputs.fecha }}
+          name: ${{ steps.fecha.outputs.fecha }}
+          files: build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: false

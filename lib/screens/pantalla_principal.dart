@@ -147,7 +147,7 @@ class _VistaDiaState extends State<_VistaDia> {
   static const double _alturaMinutoPx = 1.2;
   static const int _horaInicio = 0;
   static const int _horaFin = 24;
-  static const double _alturaMinLibre = 32.0;
+  static const double _alturaMinLibre = 48.0;
 
   final Set<int> _bloquesSeleccionados = {};
   bool get _modoSeleccion => _bloquesSeleccionados.isNotEmpty;
@@ -240,14 +240,20 @@ Future<void> _cargarBloquesLocales() async {
 
     for (final item in items) {
       if (item.inicio.isAfter(cursor)) {
-        segmentos.add(_Segmento.libre(cursor, item.inicio));
+        final duracionHueco = item.inicio.difference(cursor).inMinutes;
+        if (duracionHueco > 1) {
+          segmentos.add(_Segmento.libre(cursor, item.inicio));
+        }
       }
       segmentos.add(item);
       cursor = item.fin;
     }
 
     if (cursor.isBefore(fin)) {
-      segmentos.add(_Segmento.libre(cursor, fin));
+      final duracionHueco = fin.difference(cursor).inMinutes;
+      if (duracionHueco > 1) {
+        segmentos.add(_Segmento.libre(cursor, fin));
+      }
     }
 
     return segmentos;
@@ -365,7 +371,7 @@ Future<void> _cargarBloquesLocales() async {
               } else if (seg.esEvento) {
                 return _construirFila(
                   hora: FechaUtils.formatearHora(seg.inicio),
-                  altura: 56.0,
+                  altura: 32.0,
                   child: _bloqueEvento(seg),
                 );
               } else {
@@ -373,7 +379,7 @@ Future<void> _cargarBloquesLocales() async {
                     _buscarCategoria(categorias, seg.bloque!.categoriaId);
                 return _construirFila(
                   hora: FechaUtils.formatearHora(seg.inicio),
-                  altura: 56.0,
+                  altura: 32.0,
                   child: _bloqueActividad(seg, categoria),
                 );
               }
@@ -585,6 +591,16 @@ Future<void> _cargarBloquesLocales() async {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (categoria != null)
+                    Text(
+                      categoria.nombre,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: color.withOpacity(0.8),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   if (altura > 38)
                     Text(
                       duracionTexto,

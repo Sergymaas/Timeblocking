@@ -22,9 +22,10 @@ To-Do list:
     - Añadir varias categorías a un mismo bloque?
     - mismo color en todos los bloques y mostrar categoría mediante # o un círculo (por ejemplo) del color de la categoría?
     - Solucionar notificaciones (no aparecen) y sincronización calendario
+    - En la pantalla de plantillas, mostrar horas y bloques vacíos, como en la pantalla principal
     - Ajustes visuales:
-        - Mejorar la visualización de los bloques de tiempo: en lugar de un bloque de color, todos los bloques son del mismo color (o pequeña diferencia) y se añade la categoría con su color
-        - no aparecen las horas de inicio-final actualizadas (inicio sí) de los bloques vacíos (cuando hay otros creados)
-        - Mostrar la hora actual (línea horizontal o barra/contador del tiempo restante dentro del bloque actual)
-        - tamaño bloques (un poco más grandes)
-        - tamaño horas (24h se ve más grande que las demás)# Timeblocking
+        - Mejorar la visualización de los bloques de tiempo: en lugar de un bloque de color, todos los bloques son del mismo color (o pequeña diferencia) y se añade la categoría con su color [MODIFICAR] -> añadir nombre de la categoría
+        - no aparecen las horas de inicio-final actualizadas (inicio sí) de los bloques vacíos (entre bloques ya creados) -> poner por defecto hora inicio+hora final, y rellenarlos automaticamente con las horas libres de ese bloque vacío [HECHO]
+        - Mostrar la hora actual (línea horizontal o barra/contador del tiempo restante dentro del bloque actual) [HECHO]
+        - tamaño bloques [HECHO] 64px
+        - tamaño horas (24h se ve más grande que las demás)# Timeblocking [HECHO]
